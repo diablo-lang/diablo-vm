@@ -2,13 +2,18 @@ alias DiabloValue = Float64
 
 enum Op
     Constant
+    Add
+    Subtract
+    Multiply
+    Divide
+    Negate
     Return
 end
 
 class Chunk
-    @code = [] of Op | DiabloValue
+    getter code = [] of Op | DiabloValue
+    getter constants = [] of DiabloValue
     @lines = [] of Int32
-    @constants = [] of DiabloValue
 
     def write(op, line)
         @code.push(op)
@@ -40,8 +45,18 @@ class Chunk
         instruction = @code[offset]
         case instruction
         when Op::Constant
-            constant = @code[offset + 1]
-            puts("%-16s %4d '#{@constants[offset]}'" % ["OP_CONSTANT", constant])
+            idx = @code[offset + 1].as(Float64).to_i
+            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_CONSTANT", idx])
+        when Op::Add
+            puts("OP_ADD")
+        when Op::Subtract
+            puts("OP_SUBTRACT")
+        when Op::Multiply
+            puts("OP_MULTIPLY")
+        when Op::Divide
+            puts("OP_DIVIDE")
+        when Op::Negate
+            puts("OP_NEGATE")
         when Op::Return
             puts("OP_RETURN")
         else

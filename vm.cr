@@ -11,9 +11,10 @@ class VM
     @ip = 0
     @stack = [] of DiabloValue
 
-    def interpret(chunk : Chunk)
-        @chunk = chunk
-        return run()
+    def interpret(source)
+        compiler = Compiler.new()
+        compiler.compile(source)
+        return Interpret::Ok
     end
 
     def run()

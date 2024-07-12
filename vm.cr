@@ -4,7 +4,7 @@ enum Interpret
     RuntimeError
 end
 
-DEBUG_TRACING=true
+DEBUG_TRACING=false
 
 class VM
     @chunk = Chunk.new()
@@ -13,8 +13,17 @@ class VM
 
     def interpret(source)
         compiler = Compiler.new()
-        compiler.compile(source)
-        return Interpret::Ok
+        if !compiler.compile(source)
+            puts compiler.current_chunk.inspect
+            return DiabloError::InterpretCompileError
+        end
+
+        @chunk = compiler.current_chunk
+        @ip = 0
+
+        result = run()
+
+        return result
     end
 
     def run()

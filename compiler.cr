@@ -53,7 +53,7 @@ class Compiler
             TokenType::GreaterEqual => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
             TokenType::Less         => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
             TokenType::LessEqual    => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
-            TokenType::Identifier   => ParseRule.new(Precedence::None),
+            TokenType::Identifier   => ParseRule.new(Precedence::None, -> { variable }),
             TokenType::String       => ParseRule.new(Precedence::None, -> { string }),
             TokenType::Number       => ParseRule.new(Precedence::None, -> { number }),
             TokenType::And          => ParseRule.new(Precedence::None),
@@ -82,10 +82,90 @@ class Compiler
         @scanner = Scanner.new(source)
         @compiling_chunk = Chunk.new()
         advance()
-        expression()
-        consume(TokenType::Eof, "Expect end of expression.")
+        while !match(TokenType::Eof)
+            declaration()
+        end
         end_compiler()
         return !@parser.had_error
+    end
+
+    def declaration()
+        if match(TokenType::Let)
+            var_declaration()
+        else
+            statement()
+        end
+        if @parser.panic_mode
+            synchronize()
+        end
+    end
+
+    def var_declaration()
+        global = parse_variable("Expect variable name.")
+
+        if match(TokenType::Equal)
+            expression()
+        else
+            emit_byte(Op::Nil)
+        end
+
+        consume(TokenType::Semicolon, "Expect ';' after variable declaration.")
+
+        define_variable(global)
+    end
+
+    def variable()
+        named_variable(@parser.previous)
+    end
+    
+    def named_variable(token)
+        arg = identifier_constant(token)
+        emit_bytes(Op::GetGlobal, arg)
+    end
+
+    def parse_variable(error_message)
+        consume(TokenType::Identifier, error_message)
+        return identifier_constant(@parser.previous)
+    end
+
+    def identifier_constant(token)
+        return make_constant(token.text)
+    end
+
+    def define_variable(global)
+        emit_bytes(Op::DefineGlobal, global)
+    end
+
+    def statement()
+        if match(TokenType::Print)
+            print_statement()
+        else
+            expression_statement()
+        end
+    end
+
+    def expression_statement()
+        expression()
+        consume(TokenType::Semicolon, "Expect ';' after expression.")
+        emit_byte(Op::Pop)
+    end
+
+    def synchronize()
+        @parser.panic_mode = false
+
+        while @parser.current.type != TokenType::Eof
+            return if @parser.previous.type == TokenType::Semicolon
+            case @parser.current.type
+            when TokenType::Fn, TokenType::Let, TokenType::For,
+                TokenType::If, TokenType::While, TokenType::Print,
+                TokenType::Return
+                return
+            else
+                # Do nothing
+            end
+
+            advance()
+        end
     end
 
     def end_compiler()
@@ -226,6 +306,22 @@ class Compiler
             return
         end
         error_at_current(message)
+    end
+
+    def match(type)
+        return false if !check(type)
+        advance()
+        return true
+    end
+
+    def check(type)
+        return @parser.current.type == type
+    end
+
+    def print_statement()
+        expression()
+        consume(TokenType::Semicolon, "Expect ';' after value.")
+        emit_byte(Op::Print)
     end
 
     def emit_byte(byte)

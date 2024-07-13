@@ -10,6 +10,7 @@ class VM
     @chunk = Chunk.new()
     @ip = 0
     @stack = [] of DiabloValue
+    @globals = Hash(String, DiabloValue).new()
 
     def interpret(source)
         compiler = Compiler.new()
@@ -47,6 +48,20 @@ class VM
                 @stack.push(true)
             when Op::False
                 @stack.push(false)
+            when Op::Pop
+                @stack.pop()
+            when Op::GetGlobal
+                name = read_constant().as(String)
+                unless @globals.has_key?(name)
+                    runtime_error("Undefined variable '#{name}'.")
+                    return DiabloError::InterpretRuntimeError
+                end
+                value = @globals[name]
+                @stack.push(value)
+            when Op::DefineGlobal
+                name = read_constant().as(String)
+                @globals[name] = peek(0)
+                @stack.pop()
             when Op::Equal
                 b = @stack.pop()
                 a = @stack.pop()
@@ -82,8 +97,9 @@ class VM
                     return DiabloError::InterpretRuntimeError
                 end
                 @stack.push(-@stack.pop().as(Float64))
-            when Op::Return
+            when Op::Print
                 puts(@stack.pop())
+            when Op::Return
                 return Interpret::Ok
             end
         end

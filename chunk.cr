@@ -11,6 +11,9 @@ enum Op
     Nil
     True
     False
+    Pop
+    GetGlobal
+    DefineGlobal
     Equal
     Greater
     Less
@@ -20,6 +23,7 @@ enum Op
     Divide
     Not
     Negate
+    Print
     Return
 end
 
@@ -66,6 +70,14 @@ class Chunk
             puts("OP_TRUE")
         when Op::False
             puts("OP_FALSE")
+        when Op::Pop
+            puts("OP_POP")
+        when Op::GetGlobal
+            idx = @code[offset + 1].as(Float64).to_i
+            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_GET_GLOBAL", idx])            
+        when Op::DefineGlobal
+            idx = @code[offset + 1].as(Float64).to_i
+            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_DEFINE_GLOBAL", idx])
         when Op::Equal
             puts("OP_EQUAL")
         when Op::Greater
@@ -84,6 +96,8 @@ class Chunk
             puts("OP_NOT")
         when Op::Negate
             puts("OP_NEGATE")
+        when Op::Print
+            puts("OP_PRINT")
         when Op::Return
             puts("OP_RETURN")
         else

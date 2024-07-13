@@ -1,4 +1,4 @@
-alias DiabloValue = Float64 | Bool | Nil
+alias DiabloValue = Float64 | Bool | Nil | String
 
 enum DiabloValueType
     Bool

@@ -54,7 +54,7 @@ class Compiler
             TokenType::Less         => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
             TokenType::LessEqual    => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
             TokenType::Identifier   => ParseRule.new(Precedence::None),
-            TokenType::String       => ParseRule.new(Precedence::None),
+            TokenType::String       => ParseRule.new(Precedence::None, -> { string }),
             TokenType::Number       => ParseRule.new(Precedence::None, -> { number }),
             TokenType::And          => ParseRule.new(Precedence::None),
             TokenType::Else         => ParseRule.new(Precedence::None),
@@ -118,6 +118,10 @@ class Compiler
         value = @parser.previous.text.to_f64
 
         emit_constant(value)
+    end
+
+    def string()
+        emit_constant(@parser.previous.text[1...@parser.previous.text.size()-1])
     end
 
     def emit_constant(value)

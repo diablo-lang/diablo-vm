@@ -56,7 +56,18 @@ class VM
             when Op::Less
                 binary_op("<")
             when Op::Add
-                binary_op("+")
+                if peek(0).is_a?(String) && peek(1).is_a?(String)
+                    b = @stack.pop().as(String)
+                    a = @stack.pop().as(String)
+                    @stack.push(a + b)
+                elsif peek(0).is_a?(Float64) && peek(1).is_a?(Float64)
+                    b = @stack.pop().as(Float64)
+                    a = @stack.pop().as(Float64)
+                    @stack.push(a + b)
+                else
+                    runtime_error("Operands must be two numbers or two strings.")
+                    return DiabloError::InterpretRuntimeError
+                end
             when Op::Subtract
                 binary_op("-")
             when Op::Multiply
@@ -101,8 +112,6 @@ class VM
         b = @stack.pop().as(Float64)
         a = @stack.pop().as(Float64)
         case operator
-        when "+"
-            @stack.push(a + b)
         when "-"
             @stack.push(a - b)
         when "*"

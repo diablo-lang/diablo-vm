@@ -1,11 +1,24 @@
-alias DiabloValue = Float64
+alias DiabloValue = Float64 | Bool | Nil
+
+enum DiabloValueType
+    Bool
+    Nil
+    Number
+end
 
 enum Op
     Constant
+    Nil
+    True
+    False
+    Equal
+    Greater
+    Less
     Add
     Subtract
     Multiply
     Divide
+    Not
     Negate
     Return
 end
@@ -47,6 +60,18 @@ class Chunk
         when Op::Constant
             idx = @code[offset + 1].as(Float64).to_i
             puts("%-16s %4d '#{@constants[idx]}'" % ["OP_CONSTANT", idx])
+        when Op::Nil
+            puts("OP_NIL")
+        when Op::True
+            puts("OP_TRUE")
+        when Op::False
+            puts("OP_FALSE")
+        when Op::Equal
+            puts("OP_EQUAL")
+        when Op::Greater
+            puts("OP_GREATER")
+        when Op::Less
+            puts("OP_LESS")
         when Op::Add
             puts("OP_ADD")
         when Op::Subtract
@@ -55,6 +80,8 @@ class Chunk
             puts("OP_MULTIPLY")
         when Op::Divide
             puts("OP_DIVIDE")
+        when Op::Not
+            puts("OP_NOT")
         when Op::Negate
             puts("OP_NEGATE")
         when Op::Return

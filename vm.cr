@@ -4,7 +4,7 @@ enum Interpret
     RuntimeError
 end
 
-DEBUG_TRACING=false
+DEBUG_TRACING=true
 
 class VM
     @chunk = Chunk.new()
@@ -31,7 +31,7 @@ class VM
             if DEBUG_TRACING
                 print("          ")
                 @stack.each do |value|
-                    print("[#{value}]")
+                    print("[#{value.nil? ? "nil" : value}]")
                 end
                 puts("")
                 @chunk.disassemble_instruction(@ip)
@@ -41,6 +41,20 @@ class VM
             when Op::Constant
                 constant = read_constant()
                 @stack.push(constant)
+            when Op::Nil
+                @stack.push(nil)
+            when Op::True
+                @stack.push(true)
+            when Op::False
+                @stack.push(false)
+            when Op::Equal
+                b = @stack.pop()
+                a = @stack.pop()
+                @stack.push(values_equal(a, b))
+            when Op::Greater
+                binary_op(">")
+            when Op::Less
+                binary_op("<")
             when Op::Add
                 binary_op("+")
             when Op::Subtract
@@ -49,8 +63,14 @@ class VM
                 binary_op("*")
             when Op::Divide
                 binary_op("/")
+            when Op::Not
+                @stack.push(is_falsey(@stack.pop()))
             when Op::Negate
-                @stack.push(-@stack.pop())
+                if !peek(0).is_a?(Float64)
+                    runtime_error("Operand must be a number.")
+                    return DiabloError::InterpretRuntimeError
+                end
+                @stack.push(-@stack.pop().as(Float64))
             when Op::Return
                 puts(@stack.pop())
                 return Interpret::Ok
@@ -58,9 +78,28 @@ class VM
         end
     end
 
+    def values_equal(a, b)
+        return true if a.nil? && b.nil?
+        return false if a.nil?
+    
+        return a == b
+    end
+
+    def peek(distance)
+        return @stack[-1 - distance]
+    end
+
+    def runtime_error(error)
+        puts(error)
+    end
+
     def binary_op(operator)
-        b = @stack.pop()
-        a = @stack.pop()
+        if !peek(0).is_a?(Float64) || !peek(1).is_a?(Float64)
+            runtime_error("Operands must be numbers.")
+            return DiabloError::InterpretRuntimeError
+        end
+        b = @stack.pop().as(Float64)
+        a = @stack.pop().as(Float64)
         case operator
         when "+"
             @stack.push(a + b)
@@ -70,6 +109,10 @@ class VM
             @stack.push(a * b)
         when "/"
             @stack.push(a / b)
+        when ">"
+            @stack.push(a > b)
+        when "<"
+            @stack.push(a < b)
         end
     end
 
@@ -82,5 +125,9 @@ class VM
     def read_constant()
         idx = read_byte().as(Float64).to_i
         return @chunk.constants[idx]
+    end
+
+    def is_falsey(value)
+        return value.nil? || (value.is_a?(Bool) && !value)
     end
 end

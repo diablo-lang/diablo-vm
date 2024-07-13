@@ -45,28 +45,28 @@ class Compiler
             TokenType::Semicolon    => ParseRule.new(Precedence::None),
             TokenType::Slash        => ParseRule.new(Precedence::Factor, nil, -> { binary }),
             TokenType::Star         => ParseRule.new(Precedence::Factor, nil, -> { binary }),
-            TokenType::Bang         => ParseRule.new(Precedence::None),
-            TokenType::BangEqual    => ParseRule.new(Precedence::None),
+            TokenType::Bang         => ParseRule.new(Precedence::None, -> { unary }),
+            TokenType::BangEqual    => ParseRule.new(Precedence::Equality, nil, -> { binary }),
             TokenType::Equal        => ParseRule.new(Precedence::None),
-            TokenType::EqualEqual   => ParseRule.new(Precedence::None),
-            TokenType::Greater      => ParseRule.new(Precedence::None),
-            TokenType::GreaterEqual => ParseRule.new(Precedence::None),
-            TokenType::Less         => ParseRule.new(Precedence::None),
-            TokenType::LessEqual    => ParseRule.new(Precedence::None),
+            TokenType::EqualEqual   => ParseRule.new(Precedence::Equality, nil, -> { binary }),
+            TokenType::Greater      => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
+            TokenType::GreaterEqual => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
+            TokenType::Less         => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
+            TokenType::LessEqual    => ParseRule.new(Precedence::Comparison, nil, -> { binary }),
             TokenType::Identifier   => ParseRule.new(Precedence::None),
             TokenType::String       => ParseRule.new(Precedence::None),
             TokenType::Number       => ParseRule.new(Precedence::None, -> { number }),
             TokenType::And          => ParseRule.new(Precedence::None),
             TokenType::Else         => ParseRule.new(Precedence::None),
-            TokenType::False        => ParseRule.new(Precedence::None),
+            TokenType::False        => ParseRule.new(Precedence::None, -> { literal }),
             TokenType::For          => ParseRule.new(Precedence::None),
             TokenType::Fn           => ParseRule.new(Precedence::None),
             TokenType::If           => ParseRule.new(Precedence::None),
-            TokenType::Nil          => ParseRule.new(Precedence::None),
+            TokenType::Nil          => ParseRule.new(Precedence::None, -> { literal }),
             TokenType::Or           => ParseRule.new(Precedence::None),
             TokenType::Print        => ParseRule.new(Precedence::None),
             TokenType::Return       => ParseRule.new(Precedence::None),
-            TokenType::True         => ParseRule.new(Precedence::None),
+            TokenType::True         => ParseRule.new(Precedence::None, -> { literal }),
             TokenType::Let          => ParseRule.new(Precedence::None),
             TokenType::While        => ParseRule.new(Precedence::None),
             TokenType::Error        => ParseRule.new(Precedence::None),
@@ -101,6 +101,19 @@ class Compiler
         parse_precedence(Precedence::Assignment)
     end
 
+    def literal()
+        case @parser.previous.type
+        when TokenType::False
+            emit_byte(Op::False)
+        when TokenType::Nil
+            emit_byte(Op::Nil)
+        when TokenType::True
+            emit_byte(Op::True)
+        else
+            return # Unreachable
+        end
+    end
+
     def number()
         value = @parser.previous.text.to_f64
 
@@ -132,6 +145,8 @@ class Compiler
         parse_precedence(Precedence::Unary)
 
         case operator_type
+        when TokenType::Bang
+            emit_byte(Op::Not)
         when TokenType::Minus
             emit_byte(Op::Negate)
         else
@@ -166,6 +181,18 @@ class Compiler
         next_precedence = Precedence.new(rule.precedence.value + 1)
         parse_precedence(next_precedence)
         case operator_type
+        when TokenType::BangEqual
+            emit_bytes(Op::Equal, Op::Not)
+        when TokenType::EqualEqual
+            emit_byte(Op::Equal)
+        when TokenType::Greater
+            emit_byte(Op::Greater)
+        when TokenType::GreaterEqual
+            emit_bytes(Op::Less, Op::Not)
+        when TokenType::Less
+            emit_byte(Op::Less)
+        when TokenType::LessEqual
+            emit_bytes(Op::Greater, Op::Not)
         when TokenType::Plus
             emit_byte(Op::Add)
         when TokenType::Minus

@@ -50,6 +50,9 @@ class VM
                 @stack.push(false)
             when Op::Pop
                 @stack.pop()
+            when Op::GetLocal
+                idx = read_byte().as(Float64).to_i
+                @stack.push(@stack[idx])
             when Op::GetGlobal
                 name = read_constant().as(String)
                 unless @globals.has_key?(name)

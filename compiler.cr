@@ -23,12 +23,22 @@ end
 
 alias ParseFn = ->
 
+class Local
+    property depth : Int32
+    getter name : String
+
+    def initialize(@name : String, @depth : Int32)
+    end
+end
+
 class Compiler
     @parser : Parser
     @compiling_chunk : Chunk = Chunk.new()
     @scanner = Scanner.new("")
 
     @rules = Hash(TokenType, ParseRule).new()
+    @locals = [] of Local
+    @scope_depth = 0
 
     def initialize()
         @parser = Parser.new(Token.new(TokenType::Error, "", -1), Token.new(TokenType::Eof, "", -1))
@@ -119,12 +129,35 @@ class Compiler
     end
     
     def named_variable(token)
-        arg = identifier_constant(token)
-        emit_bytes(Op::GetGlobal, arg)
+        arg = resolve_local(token.text)
+        if arg != -1
+            emit_bytes(Op::GetLocal, arg)
+        else
+            arg = identifier_constant(token)
+            emit_bytes(Op::GetGlobal, arg)
+        end
+    end
+
+    def resolve_local(name)
+        @locals.reverse_each.with_index do |local, reverse_index|
+            # Iterator returns index from 0, 1, 2, ... regardless of reversal
+            index = @locals.size() - 1 - reverse_index
+
+            if name == local.name
+                if local.depth == -1
+                    error("Can't read local variable in its own initializer.")
+                end
+                return index
+            end
+        end
+
+        return -1
     end
 
     def parse_variable(error_message)
         consume(TokenType::Identifier, error_message)
+        declare_variable()
+        return 0 if @scope_depth > 0
         return identifier_constant(@parser.previous)
     end
 
@@ -133,14 +166,65 @@ class Compiler
     end
 
     def define_variable(global)
+        if @scope_depth > 0
+            # Mark as initialized
+            @locals.last().depth = @scope_depth
+            return
+        end
         emit_bytes(Op::DefineGlobal, global)
+    end
+
+    def declare_variable()
+        return if @scope_depth == 0
+        name = @parser.previous.text
+
+        @locals.reverse_each.with_index do |local|
+            if local.depth != -1 && local.depth < @scope_depth
+                break
+            end
+
+            if name == local.name
+                error("Already a variable with this name in this scope.")
+            end
+        end
+
+        add_local(name)
+    end
+
+    def add_local(name)
+        local = Local.new(name, -1)
+        @locals.push(local)
     end
 
     def statement()
         if match(TokenType::Print)
             print_statement()
+        elsif match(TokenType::LeftBrace)
+            begin_scope()
+            block()
+            end_scope()
         else
             expression_statement()
+        end
+    end
+
+    def block()
+        while !check(TokenType::RightBrace) && !check(TokenType::Eof)
+            declaration()
+        end
+
+        consume(TokenType::RightBrace, "Expect '}' after block.")
+    end
+
+    def begin_scope()
+        @scope_depth += 1
+    end
+
+    def end_scope()
+        @scope_depth -= 1
+        while @locals.size() > 0 && @locals.last().depth > @scope_depth
+            @locals.pop()
+            emit_byte(Op::Pop)
         end
     end
 

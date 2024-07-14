@@ -12,6 +12,7 @@ enum Op
     True
     False
     Pop
+    GetLocal
     GetGlobal
     DefineGlobal
     Equal
@@ -72,9 +73,12 @@ class Chunk
             puts("OP_FALSE")
         when Op::Pop
             puts("OP_POP")
+        when Op::GetLocal
+            idx = @code[offset + 1].as(Float64).to_i
+            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_GET_LOCAL", idx])   
         when Op::GetGlobal
             idx = @code[offset + 1].as(Float64).to_i
-            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_GET_GLOBAL", idx])            
+            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_GET_GLOBAL", idx])
         when Op::DefineGlobal
             idx = @code[offset + 1].as(Float64).to_i
             puts("%-16s %4d '#{@constants[idx]}'" % ["OP_DEFINE_GLOBAL", idx])

@@ -25,6 +25,8 @@ enum Op
     Not
     Negate
     Print
+    Jump
+    JumpIfFalse
     Return
 end
 
@@ -63,8 +65,7 @@ class Chunk
         instruction = @code[offset]
         case instruction
         when Op::Constant
-            idx = @code[offset + 1].as(Float64).to_i
-            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_CONSTANT", idx])
+            compound_instruction(offset, "OP_CONSTANT")
         when Op::Nil
             puts("OP_NIL")
         when Op::True
@@ -74,14 +75,11 @@ class Chunk
         when Op::Pop
             puts("OP_POP")
         when Op::GetLocal
-            idx = @code[offset + 1].as(Float64).to_i
-            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_GET_LOCAL", idx])   
+            compound_instruction(offset, "OP_GET_LOCAL")
         when Op::GetGlobal
-            idx = @code[offset + 1].as(Float64).to_i
-            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_GET_GLOBAL", idx])
+            compound_instruction(offset, "OP_GET_GLOBAL")
         when Op::DefineGlobal
-            idx = @code[offset + 1].as(Float64).to_i
-            puts("%-16s %4d '#{@constants[idx]}'" % ["OP_DEFINE_GLOBAL", idx])
+            compound_instruction(offset, "OP_DEFINE_GLOBAL")
         when Op::Equal
             puts("OP_EQUAL")
         when Op::Greater
@@ -102,10 +100,19 @@ class Chunk
             puts("OP_NEGATE")
         when Op::Print
             puts("OP_PRINT")
+        when Op::Jump
+            compound_instruction(offset, "OP_JUMP")
+        when Op::JumpIfFalse
+            compound_instruction(offset, "OP_JUMP_IF_FALSE")
         when Op::Return
             puts("OP_RETURN")
         else
             puts("Unknown opcode #{instruction}")
         end
+    end
+
+    def compound_instruction(offset, name)
+        idx = @code[offset + 1].as(Float64).to_i
+        puts("%-16s %4d '#{@constants[idx]}'" % [name, idx])
     end
 end

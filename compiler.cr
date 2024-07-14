@@ -66,14 +66,14 @@ class Compiler
             TokenType::Identifier   => ParseRule.new(Precedence::None, -> { variable }),
             TokenType::String       => ParseRule.new(Precedence::None, -> { string }),
             TokenType::Number       => ParseRule.new(Precedence::None, -> { number }),
-            TokenType::And          => ParseRule.new(Precedence::None),
+            TokenType::And          => ParseRule.new(Precedence::And, nil, -> { and }),
             TokenType::Else         => ParseRule.new(Precedence::None),
             TokenType::False        => ParseRule.new(Precedence::None, -> { literal }),
             TokenType::For          => ParseRule.new(Precedence::None),
             TokenType::Fn           => ParseRule.new(Precedence::None),
             TokenType::If           => ParseRule.new(Precedence::None),
             TokenType::Nil          => ParseRule.new(Precedence::None, -> { literal }),
-            TokenType::Or           => ParseRule.new(Precedence::None),
+            TokenType::Or           => ParseRule.new(Precedence::Or, nil, -> { or }),
             TokenType::Print        => ParseRule.new(Precedence::None),
             TokenType::Return       => ParseRule.new(Precedence::None),
             TokenType::True         => ParseRule.new(Precedence::None, -> { literal }),
@@ -82,6 +82,24 @@ class Compiler
             TokenType::Error        => ParseRule.new(Precedence::None),
             TokenType::Eof          => ParseRule.new(Precedence::None),
           }
+    end
+
+    def and()
+        end_jump = emit_jump(Op::JumpIfFalse)
+        emit_byte(Op::Pop)
+        parse_precedence(Precedence::And)
+        patch_jump(end_jump)
+    end
+
+    def or()
+        else_jump = emit_jump(Op::JumpIfFalse)
+        end_jump = emit_jump(Op::Jump)
+
+        patch_jump(else_jump)
+        emit_byte(Op::Pop)
+
+        parse_precedence(Precedence::Or)
+        patch_jump(end_jump)
     end
 
     def current_chunk()
@@ -199,6 +217,8 @@ class Compiler
     def statement()
         if match(TokenType::Print)
             print_statement()
+        elsif match(TokenType::If)
+            if_statement()
         elsif match(TokenType::LeftBrace)
             begin_scope()
             block()
@@ -206,6 +226,42 @@ class Compiler
         else
             expression_statement()
         end
+    end
+
+    def if_statement()
+        consume(TokenType::LeftParen, "Expect '(' after 'if'.")
+        expression()
+        consume(TokenType::RightParen, "Expect ')' after condition.")
+
+        then_jump = emit_jump(Op::JumpIfFalse)
+        emit_byte(Op::Pop)
+        statement()
+
+        else_jump = emit_jump(Op::Jump)
+
+        patch_jump(then_jump)
+        emit_byte(Op::Pop)
+
+        if match(TokenType::Else)
+            statement()
+        end
+        patch_jump(else_jump)
+    end
+
+    def emit_jump(instruction)
+        emit_byte(instruction)
+        emit_byte(0xff)
+        return @compiling_chunk.code.size() - 1
+    end
+
+    def patch_jump(offset)
+        jump = @compiling_chunk.code.size() - offset - 1
+        if jump > UInt16::MAX
+            error("Too much code to jump over.")
+        end
+
+
+        @compiling_chunk.code[offset] = jump
     end
 
     def block()

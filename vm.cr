@@ -4,7 +4,7 @@ enum Interpret
     RuntimeError
 end
 
-DEBUG_TRACING=true
+DEBUG_TRACING=false
 
 class VM
     @chunk = Chunk.new()
@@ -102,6 +102,14 @@ class VM
                 @stack.push(-@stack.pop().as(Float64))
             when Op::Print
                 puts(@stack.pop())
+            when Op::Jump
+                offset = read_byte().as(Float64).to_i
+                @ip += offset
+            when Op::JumpIfFalse
+                offset = read_byte().as(Float64).to_i
+                if is_falsey(peek(0))
+                    @ip += offset
+                end
             when Op::Return
                 return Interpret::Ok
             end
